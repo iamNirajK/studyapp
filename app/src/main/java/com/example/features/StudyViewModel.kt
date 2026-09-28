@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class StudyViewModel(application: Application) : AndroidViewModel(application) {
 
     val repository: StudyRepository
