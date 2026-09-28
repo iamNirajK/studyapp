@@ -1,0 +1,6 @@
+{
+  "name": "SK AI Smart Study Planner",
+  "description": "A premium AI-powered daily study planner that dynamically schedules your study blocks, revisions, and breaks around fixed live classes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
