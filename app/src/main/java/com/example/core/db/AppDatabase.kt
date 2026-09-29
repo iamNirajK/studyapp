@@ -6,13 +6,22 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [DailyScheduleEntity::class, TaskEntity::class, ScheduledNotificationEntity::class, ChatSessionEntity::class, ChatMessageEntity::class],
-    version = 3,
+    entities = [
+        DailyScheduleEntity::class,
+        TaskEntity::class,
+        ScheduledNotificationEntity::class,
+        ChatSessionEntity::class,
+        ChatMessageEntity::class,
+        YouTubeChannelEntity::class,
+        YouTubeUpcomingClassEntity::class
+    ],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun scheduleDao(): ScheduleDao
     abstract fun chatDao(): ChatDao
+    abstract fun youTubeDao(): YouTubeDao
 
 
     companion object {

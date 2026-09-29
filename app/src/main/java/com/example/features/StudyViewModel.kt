@@ -22,11 +22,98 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
 
     val repository: StudyRepository
     val settingsManager: SettingsManager
+    val trackerManager: com.example.core.youtube.YouTubeTrackerManager
 
     init {
         val database = AppDatabase.getDatabase(application)
         repository = StudyRepository(database.scheduleDao(), database.chatDao())
         settingsManager = SettingsManager(application)
+        trackerManager = com.example.core.youtube.YouTubeTrackerManager(application, database.youTubeDao(), settingsManager)
+        viewModelScope.launch {
+            trackerManager.initializeDefaultChannelsIfNeeded()
+        }
+    }
+
+    val trackedChannels: StateFlow<List<com.example.core.db.YouTubeChannelEntity>> = trackerManager.getAllChannels()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val upcomingClasses: StateFlow<List<com.example.core.db.YouTubeUpcomingClassEntity>> = trackerManager.getAllUpcomingClasses()
+        .combine(trackedChannels) { classes, channels ->
+            val channelMap = channels.associateBy { it.id }
+            classes.filter { cls ->
+                val ch = channelMap[cls.channelId]
+                if (ch == null) false
+                else if (ch.filterClass12Only) {
+                    com.example.core.youtube.Class12Filter.isClass12Content(cls.title)
+                } else true
+            }.sortedWith(
+                compareByDescending<com.example.core.db.YouTubeUpcomingClassEntity> { it.isLive }
+                    .thenBy { it.scheduledStartTimeMillis }
+            )
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _isSyncingYouTube = MutableStateFlow(false)
+    val isSyncingYouTube: StateFlow<Boolean> = _isSyncingYouTube.asStateFlow()
+
+    private val _addChannelError = MutableStateFlow<String?>(null)
+    val addChannelError: StateFlow<String?> = _addChannelError.asStateFlow()
+
+    fun clearAddChannelError() {
+        _addChannelError.value = null
+    }
+
+    fun syncYouTubeChannels() {
+        viewModelScope.launch {
+            _isSyncingYouTube.value = true
+            try {
+                trackerManager.syncAllChannels()
+            } finally {
+                _isSyncingYouTube.value = false
+            }
+        }
+    }
+
+    fun saveYouTubeApiKey(key: String) {
+        settingsManager.youtubeApiKey = key.trim()
+        syncYouTubeChannels()
+    }
+
+    fun addYouTubeChannel(
+        urlOrHandle: String,
+        previewName: String = "",
+        previewAvatar: String = "",
+        onResult: ((Boolean, String?) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val res = trackerManager.addChannel(urlOrHandle, previewName, previewAvatar)
+            if (res.isSuccess) {
+                _addChannelError.value = null
+                onResult?.invoke(true, null)
+            } else {
+                val msg = res.exceptionOrNull()?.message ?: "Could not verify YouTube channel ID"
+                _addChannelError.value = msg
+                onResult?.invoke(false, msg)
+            }
+        }
+    }
+
+    fun removeYouTubeChannel(channelId: String) {
+        viewModelScope.launch {
+            trackerManager.removeChannel(channelId)
+        }
+    }
+
+    fun updateYouTubeChannel(channel: com.example.core.db.YouTubeChannelEntity) {
+        viewModelScope.launch {
+            trackerManager.updateChannel(channel)
+        }
+    }
+
+    fun setClassLiveStatus(videoId: String, isLive: Boolean) {
+        viewModelScope.launch {
+            trackerManager.setClassLive(videoId, isLive)
+        }
     }
 
 

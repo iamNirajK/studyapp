@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.content.Intent
 import android.net.Uri
+import com.example.features.youtube.UpcomingClassesSection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +41,7 @@ fun DashboardScreen(
     viewModel: StudyViewModel,
     modifier: Modifier = Modifier,
     onNavigateToAi: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     onNavigateToPlanner: () -> Unit
 ) {
     val selectedDate by viewModel.selectedDate.collectAsState()
@@ -179,7 +181,8 @@ fun DashboardScreen(
                     schedule = schedule,
                     tasks = tasks,
                     liveTimeText = liveTimeText,
-                    onTelegramShare = { viewModel.sendScheduleToTelegram() }
+                    onTelegramShare = { viewModel.sendScheduleToTelegram() },
+                    onNavigateToSettings = onNavigateToSettings
                 )
             }
 
@@ -299,6 +302,14 @@ fun DashboardScreen(
                         }
                     }
                 }
+            }
+
+            // 1d. 📚 Upcoming Classes Section (YouTube Class Live Tracker)
+            item {
+                UpcomingClassesSection(
+                    viewModel = viewModel,
+                    onNavigateToSettings = onNavigateToSettings
+                )
             }
 
             // 2. Schedule Existence Check
@@ -455,7 +466,8 @@ fun ProfileHeaderCard(
     schedule: DailyScheduleEntity?,
     tasks: List<TaskEntity>,
     liveTimeText: String,
-    onTelegramShare: () -> Unit
+    onTelegramShare: () -> Unit,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val completionPercent = schedule?.completion ?: 0
     val totalInteractive = tasks.count {
@@ -547,19 +559,39 @@ fun ProfileHeaderCard(
                     )
                 }
 
-                // Share Button
-                IconButton(
-                    onClick = onTelegramShare,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                        .testTag("telegram_share_button")
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.Send,
-                        contentDescription = "Send plan to Telegram",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    // Share Button
+                    IconButton(
+                        onClick = onTelegramShare,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .testTag("telegram_share_button")
+                    ) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = "Send plan to Telegram",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    // Settings Button
+                    IconButton(
+                        onClick = onNavigateToSettings,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .testTag("home_settings_button")
+                    ) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 

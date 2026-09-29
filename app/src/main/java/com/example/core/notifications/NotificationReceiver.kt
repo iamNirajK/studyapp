@@ -20,8 +20,15 @@ class NotificationReceiver : BroadcastReceiver() {
 
         createNotificationChannel(context)
 
-        val mainIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        val mainIntent = if (intent.hasExtra("video_url") && !intent.getStringExtra("video_url").isNullOrBlank()) {
+            val videoUrl = intent.getStringExtra("video_url")!!
+            Intent(Intent.ACTION_VIEW, android.net.Uri.parse(videoUrl)).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        } else {
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
         }
         val pendingIntent = PendingIntent.getActivity(
             context,

@@ -41,6 +41,7 @@ class SettingsManager(context: Context) {
         private const val KEY_VOICE_VOLUME = "voice_volume"
         private const val KEY_VOICE_LANGUAGE = "voice_language"
         private const val KEY_AUTO_SPEAK = "auto_speak"
+        private const val KEY_YOUTUBE_API_KEY = "youtube_api_key"
     }
 
     // --- Active Session Memory (Strictly Privacy & In-Memory Only) ---
@@ -136,6 +137,10 @@ class SettingsManager(context: Context) {
     var isAutoSpeakEnabled: Boolean
         get() = prefs.getBoolean(KEY_AUTO_SPEAK, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_SPEAK, value).apply()
+
+    var youtubeApiKey: String
+        get() = prefs.getString(KEY_YOUTUBE_API_KEY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_YOUTUBE_API_KEY, value).apply()
 
     fun clearTelegramConfig() {
         isTelegramEnabled = false

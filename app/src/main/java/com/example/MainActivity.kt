@@ -27,6 +27,7 @@ import com.example.features.dashboard.DashboardScreen
 import com.example.features.planner.PlannerScreen
 import com.example.features.setup.UserSetupScreen
 import com.example.features.ai.NirajAiScreen
+import com.example.features.settings.SettingsScreen
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -113,6 +114,13 @@ fun MainAppScreen(viewModel: StudyViewModel) {
                         label = { Text("AI Planner") },
                         modifier = Modifier.testTag("nav_planner_tab")
                     )
+                    NavigationBarItem(
+                        selected = activeTab == "settings",
+                        onClick = { activeTab = "settings" },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                        label = { Text("Settings") },
+                        modifier = Modifier.testTag("nav_settings_tab")
+                    )
                 }
             }
         }
@@ -126,10 +134,10 @@ fun MainAppScreen(viewModel: StudyViewModel) {
                 "home" -> DashboardScreen(
                     viewModel = viewModel,
                     modifier = Modifier.fillMaxSize(),
-                    onNavigateToAi = { activeTab = "ai" }
-                ) {
-                    activeTab = "planner"
-                }
+                    onNavigateToAi = { activeTab = "ai" },
+                    onNavigateToSettings = { activeTab = "settings" },
+                    onNavigateToPlanner = { activeTab = "planner" }
+                )
 
                 "ai" -> NirajAiScreen(
                     viewModel = viewModel,
@@ -149,6 +157,12 @@ fun MainAppScreen(viewModel: StudyViewModel) {
                 ) {
                     activeTab = "home"
                 }
+
+                "settings" -> SettingsScreen(
+                    viewModel = viewModel,
+                    modifier = Modifier.fillMaxSize(),
+                    onNavigateBack = { activeTab = "home" }
+                )
             }
         }
     }
