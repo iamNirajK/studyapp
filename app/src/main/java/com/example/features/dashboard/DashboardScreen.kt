@@ -178,6 +178,7 @@ fun DashboardScreen(
             // 1. Premium Profile Header Card
             item {
                 ProfileHeaderCard(
+                    viewModel = viewModel,
                     schedule = schedule,
                     tasks = tasks,
                     liveTimeText = liveTimeText,
@@ -463,12 +464,26 @@ fun EmptyStateCard(onNavigateToPlanner: () -> Unit) {
 
 @Composable
 fun ProfileHeaderCard(
+    viewModel: StudyViewModel,
     schedule: DailyScheduleEntity?,
     tasks: List<TaskEntity>,
     liveTimeText: String,
     onTelegramShare: () -> Unit,
     onNavigateToSettings: () -> Unit = {}
 ) {
+    val userProfile by viewModel.userProfile.collectAsState()
+    val savedName = userProfile?.name?.trim()?.takeIf { it.isNotEmpty() }
+        ?: viewModel.settingsManager.userName.trim().takeIf { it.isNotEmpty() }
+        ?: "Student"
+
+    val welcomeGreeting = "Welcome, $savedName!"
+    val initials = savedName.split(" ")
+        .filter { it.isNotBlank() }
+        .take(2)
+        .map { it.first().uppercase() }
+        .joinToString("")
+        .ifEmpty { "S" }
+
     val completionPercent = schedule?.completion ?: 0
     val totalInteractive = tasks.count {
         it.type !in listOf("Break", "Meal", "Sleep", "Water Reminder")
@@ -510,7 +525,7 @@ fun ProfileHeaderCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. Circular Avatar
+                // 1. Circular Avatar with user's initials
                 Box(
                     modifier = Modifier
                         .size(60.dp)
@@ -526,7 +541,7 @@ fun ProfileHeaderCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "NC",
+                        text = initials,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onPrimary
@@ -536,7 +551,7 @@ fun ProfileHeaderCard(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // 2. Name & Greeting
+                // 2. Personalized Name & Welcome Greeting
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "$greeting,",
@@ -544,12 +559,13 @@ fun ProfileHeaderCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                     Text(
-                        text = "Mr. Niraj Chaurasiya",
+                        text = welcomeGreeting,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = (-0.5).sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.testTag("dashboard_welcome_text")
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(

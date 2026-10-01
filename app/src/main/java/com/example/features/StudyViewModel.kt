@@ -10,6 +10,7 @@ import com.example.core.notifications.StudyNotificationManager
 import com.example.core.repository.StudyRepository
 import com.example.core.scheduler.GeminiScheduler
 import com.example.core.settings.SettingsManager
+import com.example.core.settings.UserProfile
 import com.example.core.telegram.TelegramService
 import android.graphics.Bitmap
 import kotlinx.coroutines.flow.*
@@ -120,9 +121,19 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedDate = MutableStateFlow(getTodayDateString())
     val selectedDate: StateFlow<String> = _selectedDate.asStateFlow()
 
-    // Session Setup state
-    private val _isSessionSetupDone = MutableStateFlow(settingsManager.isSessionSetupCompleted)
+    // Persistent User Profile state
+    private val _userProfile = MutableStateFlow<UserProfile?>(settingsManager.getUserProfile())
+    val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
+
+    private val _isSessionSetupDone = MutableStateFlow(settingsManager.isSetupCompleted)
     val isSessionSetupDone: StateFlow<Boolean> = _isSessionSetupDone.asStateFlow()
+
+    val welcomeMessage: StateFlow<String> = _userProfile.map { profile ->
+        val name = profile?.name?.trim()?.takeIf { it.isNotEmpty() }
+            ?: settingsManager.userName.trim().takeIf { it.isNotEmpty() }
+            ?: "Student"
+        "Welcome, $name!"
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Welcome, ${settingsManager.userName.trim().takeIf { it.isNotEmpty() } ?: "Student"}!")
 
     // Screen states
     private val _generateState = MutableStateFlow<PlannerState>(PlannerState.Idle)
@@ -248,6 +259,70 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
         settingsManager.telegramChatId = chatId
     }
 
+    /**
+     * Saves user profile locally and validates persistence.
+     * Guaranteed to persist across app restarts and reopens.
+     */
+    fun saveUserProfile(
+        name: String,
+        dob: String,
+        wantTelegram: Boolean,
+        botToken: String,
+        chatId: String,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        val trimmedName = name.trim()
+        val trimmedDob = dob.trim()
+        if (trimmedName.isBlank()) {
+            onResult(false, "Name is required.")
+            return
+        }
+        if (trimmedDob.isBlank()) {
+            onResult(false, "Date of birth is required.")
+            return
+        }
+        if (wantTelegram) {
+            if (botToken.trim().isBlank()) {
+                onResult(false, "Telegram Bot Token is required.")
+                return
+            }
+            if (chatId.trim().isBlank()) {
+                onResult(false, "Telegram Chat ID is required.")
+                return
+            }
+        }
+
+        val profile = UserProfile(
+            setupCompleted = true,
+            name = trimmedName,
+            dateOfBirth = trimmedDob,
+            telegramEnabled = wantTelegram,
+            telegramChatId = if (wantTelegram) chatId.trim() else null,
+            telegramBotToken = if (wantTelegram) botToken.trim() else null
+        )
+
+        val saved = settingsManager.saveUserProfile(profile)
+        if (saved) {
+            val verifiedProfile = settingsManager.getUserProfile()
+            if (verifiedProfile != null && verifiedProfile.setupCompleted && verifiedProfile.name == trimmedName) {
+                _userProfile.value = verifiedProfile
+                _isSessionSetupDone.value = true
+                onResult(true, null)
+            } else {
+                onResult(false, "Verification failed: Could not read back saved profile.")
+            }
+        } else {
+            onResult(false, "Failed to persist profile to storage. Please try again.")
+        }
+    }
+
+    fun resetProfile(onComplete: (() -> Unit)? = null) {
+        settingsManager.resetUserProfile()
+        _userProfile.value = null
+        _isSessionSetupDone.value = false
+        onComplete?.invoke()
+    }
+
     fun completeSessionSetup(
         name: String,
         dob: String,
@@ -255,13 +330,7 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
         botToken: String,
         chatId: String
     ) {
-        settingsManager.userName = name.trim()
-        settingsManager.userDob = dob.trim()
-        settingsManager.isTelegramEnabled = wantTelegram
-        settingsManager.telegramBotToken = if (wantTelegram) botToken.trim() else ""
-        settingsManager.telegramChatId = if (wantTelegram) chatId.trim() else ""
-        settingsManager.isSessionSetupCompleted = true
-        _isSessionSetupDone.value = true
+        saveUserProfile(name, dob, wantTelegram, botToken, chatId) { _, _ -> }
     }
 
     fun sendScheduleToTelegram() {

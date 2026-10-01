@@ -7,24 +7,18 @@ class SettingsManager(context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    init {
-        // Privacy Mandate: Purge any stored sensitive credentials or user data from persistent SharedPreferences
-        prefs.edit()
-            .remove(KEY_TELEGRAM_ENABLED)
-            .remove(KEY_TELEGRAM_BOT_TOKEN)
-            .remove(KEY_TELEGRAM_CHAT_ID)
-            .apply()
-    }
-
     companion object {
         private const val PREFS_NAME = "study_planner_settings"
+        private const val KEY_SETUP_COMPLETED = "user_setup_completed"
+        private const val KEY_USER_NAME = "user_name"
+        private const val KEY_USER_DOB = "user_dob"
+        private const val KEY_TELEGRAM_ENABLED = "telegram_enabled"
+        private const val KEY_TELEGRAM_BOT_TOKEN = "telegram_bot_token"
+        private const val KEY_TELEGRAM_CHAT_ID = "telegram_chat_id"
         private const val KEY_DARK_MODE = "dark_mode"
         private const val KEY_NOTIFS_ENABLED = "notifs_enabled"
         private const val KEY_WATER_REMINDERS = "water_reminders"
         private const val KEY_DAILY_MOTIVATION = "daily_motivation"
-        private const val KEY_TELEGRAM_ENABLED = "telegram_enabled"
-        private const val KEY_TELEGRAM_BOT_TOKEN = "telegram_bot_token"
-        private const val KEY_TELEGRAM_CHAT_ID = "telegram_chat_id"
         private const val KEY_LEAD_TIME = "lead_time_minutes"
         private const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
         private const val KEY_QUIET_HOURS_START = "quiet_hours_start"
@@ -44,13 +38,107 @@ class SettingsManager(context: Context) {
         private const val KEY_YOUTUBE_API_KEY = "youtube_api_key"
     }
 
-    // --- Active Session Memory (Strictly Privacy & In-Memory Only) ---
-    var userName: String = ""
-    var userDob: String = ""
-    var isTelegramEnabled: Boolean = false
-    var telegramBotToken: String = ""
-    var telegramChatId: String = ""
-    var isSessionSetupCompleted: Boolean = false
+    // --- Persistent User Profile ---
+    var isSetupCompleted: Boolean
+        get() = prefs.getBoolean(KEY_SETUP_COMPLETED, false)
+        set(value) = prefs.edit().putBoolean(KEY_SETUP_COMPLETED, value).apply()
+
+    var userName: String
+        get() = prefs.getString(KEY_USER_NAME, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_USER_NAME, value).apply()
+
+    var userDob: String
+        get() = prefs.getString(KEY_USER_DOB, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_USER_DOB, value).apply()
+
+    var isTelegramEnabled: Boolean
+        get() = prefs.getBoolean(KEY_TELEGRAM_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_TELEGRAM_ENABLED, value).apply()
+
+    var telegramBotToken: String
+        get() = prefs.getString(KEY_TELEGRAM_BOT_TOKEN, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_TELEGRAM_BOT_TOKEN, value).apply()
+
+    var telegramChatId: String
+        get() = prefs.getString(KEY_TELEGRAM_CHAT_ID, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_TELEGRAM_CHAT_ID, value).apply()
+
+    // Backward compatibility alias
+    var isSessionSetupCompleted: Boolean
+        get() = isSetupCompleted
+        set(value) {
+            isSetupCompleted = value
+        }
+
+    /**
+     * Persistently saves the user profile and immediately reads it back to verify.
+     * Returns true only after successful storage verification.
+     */
+    fun saveUserProfile(profile: UserProfile): Boolean {
+        val editor = prefs.edit()
+            .putBoolean(KEY_SETUP_COMPLETED, true)
+            .putString(KEY_USER_NAME, profile.name.trim())
+            .putString(KEY_USER_DOB, profile.dateOfBirth.trim())
+            .putBoolean(KEY_TELEGRAM_ENABLED, profile.telegramEnabled)
+
+        if (profile.telegramEnabled) {
+            editor.putString(KEY_TELEGRAM_BOT_TOKEN, profile.telegramBotToken?.trim() ?: "")
+            editor.putString(KEY_TELEGRAM_CHAT_ID, profile.telegramChatId?.trim() ?: "")
+        } else {
+            editor.remove(KEY_TELEGRAM_BOT_TOKEN)
+            editor.remove(KEY_TELEGRAM_CHAT_ID)
+        }
+
+        val committed = editor.commit()
+        if (!committed) return false
+
+        // Verification: Read back profile from persistent storage
+        val readBack = getUserProfile()
+        return readBack != null &&
+                readBack.setupCompleted &&
+                readBack.name == profile.name.trim() &&
+                readBack.dateOfBirth == profile.dateOfBirth.trim() &&
+                readBack.telegramEnabled == profile.telegramEnabled
+    }
+
+    /**
+     * Retrieves the saved user profile from persistent storage.
+     * Returns null if setup has not been completed or required data is missing.
+     */
+    fun getUserProfile(): UserProfile? {
+        val completed = prefs.getBoolean(KEY_SETUP_COMPLETED, false)
+        val name = prefs.getString(KEY_USER_NAME, "") ?: ""
+        if (!completed || name.isBlank()) {
+            return null
+        }
+        val dob = prefs.getString(KEY_USER_DOB, "") ?: ""
+        val telegram = prefs.getBoolean(KEY_TELEGRAM_ENABLED, false)
+        val botToken = if (telegram) prefs.getString(KEY_TELEGRAM_BOT_TOKEN, null) else null
+        val chatId = if (telegram) prefs.getString(KEY_TELEGRAM_CHAT_ID, null) else null
+
+        return UserProfile(
+            setupCompleted = true,
+            name = name,
+            dateOfBirth = dob,
+            telegramEnabled = telegram,
+            telegramChatId = chatId,
+            telegramBotToken = botToken
+        )
+    }
+
+    /**
+     * Clears persistent user profile data so that onboarding can be performed again.
+     */
+    fun resetUserProfile(): Boolean {
+        return prefs.edit()
+            .putBoolean(KEY_SETUP_COMPLETED, false)
+            .remove(KEY_USER_NAME)
+            .remove(KEY_USER_DOB)
+            .remove(KEY_TELEGRAM_ENABLED)
+            .remove(KEY_TELEGRAM_BOT_TOKEN)
+            .remove(KEY_TELEGRAM_CHAT_ID)
+            .commit()
+    }
 
 
     var isDarkMode: Boolean?
